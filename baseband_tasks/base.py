@@ -9,6 +9,15 @@ import numpy as np
 from astropy import units as u
 from astropy.utils.metadata import MetaData
 
+try:
+    shell = get_ipython().__class__.__name__
+    if shell == 'ZMQInteractiveShell':
+        from tqdm.notebook import tqdm
+    else:
+        from tqdm import tqdm
+except:
+    from tqdm import tqdm
+
 
 __all__ = ['Base', 'BaseTaskBase', 'TaskBase', 'PaddedTaskBase',
            'SetAttribute', 'Task']
@@ -382,7 +391,7 @@ class Base:
         """
         return self._start_time + offset / self.sample_rate
 
-    def read(self, count=None, out=None):
+    def read(self, count=None, out=None, progress = False):
         """Read a number of complete samples.
 
         Parameters
@@ -420,6 +429,8 @@ class Base:
 
         offset0 = self.offset
         sample = 0
+        if progress:
+            pbar = tqdm(total=count)
         while sample < count:
             # For current position, get frame plus offset in that frame.
             frame, sample_offset = self._get_frame(self.offset)
@@ -428,9 +439,12 @@ class Base:
             # Copy to relevant part of output.
             out[sample:sample + nsample] = data
             sample += nsample
+            if progress:
+                pbar.update(nsample)
             # Explicitly set offset (leaving get_frame free to adjust it).
             self.offset = offset0 + sample
-
+        if progress:
+            pbar.close()
         return out
 
     def _get_frame(self, offset):
